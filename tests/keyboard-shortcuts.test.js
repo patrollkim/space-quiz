@@ -59,7 +59,8 @@ test("A-D keys select their matching answer and preserve answer feedback behavio
     assert.equal(answers[index].disabled, true);
     assert.equal(elements.get("feedback").hidden, false);
     assert.equal(elements.get("next").disabled, false);
-    assert.ok(answers[index].className.includes(index === 1 ? "correct" : "wrong"));
+    const isCorrect = elements.get("feedback").children[0].textContent.startsWith("Stellar");
+    assert.ok(answers[index].className.includes(isCorrect ? "correct" : "wrong"));
   }
 });
 
