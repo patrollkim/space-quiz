@@ -195,21 +195,33 @@
       { category: "Eyes on the universe", question: "What kind of light does the James Webb Space Telescope primarily observe?", answers: ["Radio waves", "Ultraviolet light", "Infrared light", "X-rays"], correct: 2, fact: "Webb observes infrared light, helping it peer through dust and study light from the universe's earliest galaxies." }
     ];
     const byId = (id) => document.getElementById(id);
+    function shuffleQuestions(previousOrder = questions) {
+      const shuffled = [...questions];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      if (shuffled.length > 1 && shuffled.every((question, index) => question === previousOrder[index])) {
+        [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+      }
+      return shuffled;
+    }
+    let missionQuestions = shuffleQuestions();
     let current = 0;
     let score = 0;
     let answered = false;
 
     function renderQuestion(focus = false) {
       answered = false;
-      const item = questions[current];
+      const item = missionQuestions[current];
       byId("category").textContent = item.category;
       byId("question-number").textContent = `QUESTION ${String(current + 1).padStart(2, "0")}`;
       byId("question").textContent = item.question;
-      byId("progress-label").textContent = `${current + 1} / ${questions.length}`;
+      byId("progress-label").textContent = `${current + 1} / ${missionQuestions.length}`;
       byId("score-label").textContent = `${score} ${score === 1 ? "point" : "points"}`;
       byId("feedback").hidden = true;
       byId("next").disabled = true;
-      byId("next-label").textContent = current === questions.length - 1 ? "See my results" : "Next question";
+      byId("next-label").textContent = current === missionQuestions.length - 1 ? "See my results" : "Next question";
       byId("answers").replaceChildren();
       item.answers.forEach((text, index) => {
         const button = document.createElement("button");
@@ -235,7 +247,7 @@
     function selectAnswer(selected) {
       if (answered) return;
       answered = true;
-      const item = questions[current];
+      const item = missionQuestions[current];
       const correct = selected === item.correct;
       if (correct) score++;
       const buttons = [...byId("answers").children];
@@ -253,7 +265,7 @@
         }
       });
       byId("score-label").textContent = `${score} ${score === 1 ? "point" : "points"}`;
-      byId("progress-fill").style.width = `${(current + 1) / questions.length * 100}%`;
+      byId("progress-fill").style.width = `${(current + 1) / missionQuestions.length * 100}%`;
       byId("progress").setAttribute("aria-valuenow", current + 1);
       const feedback = byId("feedback");
       feedback.className = `feedback${correct ? "" : " incorrect"}`;
@@ -276,10 +288,10 @@
       byId("result-heading").textContent = reaction[1];
       byId("result-copy").textContent = reaction[2];
       const total = document.createElement("span");
-      total.textContent = ` / ${questions.length}`;
+      total.textContent = ` / ${missionQuestions.length}`;
       byId("result-score").replaceChildren(document.createTextNode(score), total);
       byId("correct-count").textContent = score;
-      byId("wrong-count").textContent = questions.length - score;
+      byId("wrong-count").textContent = missionQuestions.length - score;
       byId("result-heading").focus();
     }
 
@@ -294,12 +306,13 @@
 
     byId("next").addEventListener("click", () => {
       if (!answered) return;
-      if (current === questions.length - 1) showResults();
+      if (current === missionQuestions.length - 1) showResults();
       else { current++; renderQuestion(true); }
     });
     byId("restart").addEventListener("click", () => {
       current = 0;
       score = 0;
+      missionQuestions = shuffleQuestions(missionQuestions);
       byId("results").hidden = true;
       byId("quiz").hidden = false;
       byId("progress-fill").style.width = "0%";
