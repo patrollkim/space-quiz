@@ -74,6 +74,7 @@
     .primary:disabled { background: var(--line); color: var(--muted); cursor: not-allowed; }
     .primary svg { width: 16px; height: 16px; }
     .hint { text-align: center; color: var(--muted); font-size: 11px; margin: 17px 0 0; }
+    .hint-shortcuts { display: block; margin-top: 4px; }
     .footer { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 25px; font-size: 10px; color: var(--muted); letter-spacing: .2px; }
     .footer span { color: var(--purple); }
     .result { text-align: center; animation: reveal .45s ease both; }
@@ -114,6 +115,7 @@
       .universe { height: 100px; margin-bottom: 13px; }
       .card { padding: 22px; }
       h2 { font-size: 20px; }
+      .hint-shortcuts { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -165,7 +167,7 @@
         </div>
         <div id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" hidden></div>
         <button class="primary" id="next" disabled><span id="next-label">Next question</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <p class="hint">A little curiosity goes a long way.</p>
+        <p class="hint">A little curiosity goes a long way.<span class="hint-shortcuts">Press A, B, C or D to answer</span></p>
       </div>
     </section>
 
@@ -205,6 +207,18 @@
       { category: "Eyes on the universe", question: "What kind of light does the James Webb Space Telescope primarily observe?", answers: ["Radio waves", "Ultraviolet light", "Infrared light", "X-rays"], correct: 2, fact: "Webb observes infrared light, helping it peer through dust and study light from the universe's earliest galaxies." }
     ];
     const byId = (id) => document.getElementById(id);
+    function shuffleQuestions(previousOrder = questions) {
+      const shuffled = [...questions];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      if (shuffled.length > 1 && shuffled.every((question, index) => question === previousOrder[index])) {
+        [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+      }
+      return shuffled;
+    }
+    let missionQuestions = shuffleQuestions();
     let current = 0;
     let score = 0;
     let answered = false;
@@ -212,15 +226,15 @@
 
     function renderQuestion(focus = false) {
       answered = false;
-      const item = questions[current];
+      const item = missionQuestions[current];
       byId("category").textContent = item.category;
       byId("question-number").textContent = `QUESTION ${String(current + 1).padStart(2, "0")}`;
       byId("question").textContent = item.question;
-      byId("progress-label").textContent = `${current + 1} / ${questions.length}`;
+      byId("progress-label").textContent = `${current + 1} / ${missionQuestions.length}`;
       byId("score-label").textContent = `${score} ${score === 1 ? "point" : "points"}`;
       byId("feedback").hidden = true;
       byId("next").disabled = true;
-      byId("next-label").textContent = current === questions.length - 1 ? "See my results" : "Next question";
+      byId("next-label").textContent = current === missionQuestions.length - 1 ? "See my results" : "Next question";
       byId("answers").replaceChildren();
       item.answers.forEach((text, index) => {
         const button = document.createElement("button");
@@ -246,7 +260,7 @@
     function selectAnswer(selected) {
       if (answered) return;
       answered = true;
-      const item = questions[current];
+      const item = missionQuestions[current];
       const correct = selected === item.correct;
       selectedAnswers[current] = selected;
       if (correct) score++;
@@ -265,7 +279,7 @@
         }
       });
       byId("score-label").textContent = `${score} ${score === 1 ? "point" : "points"}`;
-      byId("progress-fill").style.width = `${(current + 1) / questions.length * 100}%`;
+      byId("progress-fill").style.width = `${(current + 1) / missionQuestions.length * 100}%`;
       byId("progress").setAttribute("aria-valuenow", current + 1);
       const feedback = byId("feedback");
       feedback.className = `feedback${correct ? "" : " incorrect"}`;
@@ -288,11 +302,11 @@
       byId("result-heading").textContent = reaction[1];
       byId("result-copy").textContent = reaction[2];
       const total = document.createElement("span");
-      total.textContent = ` / ${questions.length}`;
+      total.textContent = ` / ${missionQuestions.length}`;
       byId("result-score").replaceChildren(document.createTextNode(score), total);
       byId("correct-count").textContent = score;
-      byId("wrong-count").textContent = questions.length - score;
-      const missed = questions
+      byId("wrong-count").textContent = missionQuestions.length - score;
+      const missed = missionQuestions
         .map((item, index) => ({ item, index }))
         .filter(({ item, index }) => selectedAnswers[index] !== item.correct);
       const review = byId("missed-review");
@@ -333,15 +347,26 @@
       byId("review-missed").textContent = expanded ? "Review missed answers" : "Hide missed answers";
       review.hidden = expanded;
     });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+      if (event.target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName)) return;
+      const selected = "abcd".indexOf(event.key.toLowerCase());
+      if (selected < 0 || answered || byId("quiz").hidden) return;
+      const answer = byId("answers").children[selected];
+      if (answer && !answer.disabled) selectAnswer(selected);
+    });
+
     byId("next").addEventListener("click", () => {
       if (!answered) return;
-      if (current === questions.length - 1) showResults();
+      if (current === missionQuestions.length - 1) showResults();
       else { current++; renderQuestion(true); }
     });
     byId("restart").addEventListener("click", () => {
       current = 0;
       score = 0;
       selectedAnswers.fill(null);
+      missionQuestions = shuffleQuestions(missionQuestions);
       byId("results").hidden = true;
       byId("quiz").hidden = false;
       byId("progress-fill").style.width = "0%";
