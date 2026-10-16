@@ -89,6 +89,13 @@
     .stat span { color: var(--muted); font-size: 11px; }
     .stat:first-child strong { color: var(--green); }
     .stat:last-child strong { color: var(--red); }
+    .missed-review { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); text-align: left; }
+    .missed-review h3 { margin: 0 0 14px; font-size: 17px; }
+    .review-list { display: grid; gap: 12px; }
+    .review-item { padding: 15px; border: 1px solid var(--line); border-radius: 10px; }
+    .review-item h4 { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
+    .review-item p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .review-item strong { color: var(--text); }
     .question-content { animation: reveal .3s ease; }
     @keyframes float { 50% { transform: translateY(-7px) rotate(-3deg); } }
     @keyframes twinkle { from { opacity: .35; } to { opacity: 1; } }
@@ -173,6 +180,11 @@
         <div class="stat"><strong id="correct-count"></strong><span>Correct answers</span></div>
         <div class="stat"><strong id="wrong-count"></strong><span>Learning moments</span></div>
       </div>
+      <button class="primary" id="review-missed" aria-controls="missed-review" aria-expanded="false" hidden>Review missed answers</button>
+      <section class="missed-review" id="missed-review" aria-labelledby="missed-review-heading" hidden>
+        <h3 id="missed-review-heading">Questions to explore again</h3>
+        <div class="review-list" id="review-list"></div>
+      </section>
       <button class="primary" id="restart">Explore again <span aria-hidden="true">&#8635;</span></button>
       <p class="hint">The universe always has more to teach us.</p>
     </section>
@@ -196,6 +208,7 @@
     let current = 0;
     let score = 0;
     let answered = false;
+    const selectedAnswers = Array(questions.length).fill(null);
 
     function renderQuestion(focus = false) {
       answered = false;
@@ -235,6 +248,7 @@
       answered = true;
       const item = questions[current];
       const correct = selected === item.correct;
+      selectedAnswers[current] = selected;
       if (correct) score++;
       const buttons = [...byId("answers").children];
       buttons.forEach((button, index) => {
@@ -278,9 +292,47 @@
       byId("result-score").replaceChildren(document.createTextNode(score), total);
       byId("correct-count").textContent = score;
       byId("wrong-count").textContent = questions.length - score;
+      const missed = questions
+        .map((item, index) => ({ item, index }))
+        .filter(({ item, index }) => selectedAnswers[index] !== item.correct);
+      const review = byId("missed-review");
+      const reviewButton = byId("review-missed");
+      const reviewList = byId("review-list");
+      reviewButton.hidden = missed.length === 0;
+      reviewButton.textContent = "Review missed answers";
+      reviewButton.setAttribute("aria-expanded", "false");
+      review.hidden = true;
+      reviewList.replaceChildren();
+      missed.forEach(({ item, index }) => {
+        const entry = document.createElement("article");
+        entry.className = "review-item";
+        const question = document.createElement("h4");
+        question.textContent = `Question ${index + 1}: ${item.question}`;
+        const yourAnswer = document.createElement("p");
+        const yourAnswerLabel = document.createElement("strong");
+        yourAnswerLabel.textContent = "Your answer: ";
+        yourAnswer.append(yourAnswerLabel, document.createTextNode(item.answers[selectedAnswers[index]]));
+        const correctAnswer = document.createElement("p");
+        const correctAnswerLabel = document.createElement("strong");
+        correctAnswerLabel.textContent = "Correct answer: ";
+        correctAnswer.append(correctAnswerLabel, document.createTextNode(item.answers[item.correct]));
+        const fact = document.createElement("p");
+        const factLabel = document.createElement("strong");
+        factLabel.textContent = "Space fact: ";
+        fact.append(factLabel, document.createTextNode(item.fact));
+        entry.append(question, yourAnswer, correctAnswer, fact);
+        reviewList.append(entry);
+      });
       byId("result-heading").focus();
     }
 
+    byId("review-missed").addEventListener("click", () => {
+      const review = byId("missed-review");
+      const expanded = byId("review-missed").getAttribute("aria-expanded") === "true";
+      byId("review-missed").setAttribute("aria-expanded", String(!expanded));
+      byId("review-missed").textContent = expanded ? "Review missed answers" : "Hide missed answers";
+      review.hidden = expanded;
+    });
     byId("next").addEventListener("click", () => {
       if (!answered) return;
       if (current === questions.length - 1) showResults();
@@ -289,6 +341,7 @@
     byId("restart").addEventListener("click", () => {
       current = 0;
       score = 0;
+      selectedAnswers.fill(null);
       byId("results").hidden = true;
       byId("quiz").hidden = false;
       byId("progress-fill").style.width = "0%";
