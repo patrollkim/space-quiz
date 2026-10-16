@@ -74,6 +74,7 @@
     .primary:disabled { background: var(--line); color: var(--muted); cursor: not-allowed; }
     .primary svg { width: 16px; height: 16px; }
     .hint { text-align: center; color: var(--muted); font-size: 11px; margin: 17px 0 0; }
+    .hint-shortcuts { display: block; margin-top: 4px; }
     .footer { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 25px; font-size: 10px; color: var(--muted); letter-spacing: .2px; }
     .footer span { color: var(--purple); }
     .result { text-align: center; animation: reveal .45s ease both; }
@@ -107,6 +108,7 @@
       .universe { height: 100px; margin-bottom: 13px; }
       .card { padding: 22px; }
       h2 { font-size: 20px; }
+      .hint-shortcuts { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -158,7 +160,7 @@
         </div>
         <div id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" hidden></div>
         <button class="primary" id="next" disabled><span id="next-label">Next question</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <p class="hint">A little curiosity goes a long way.</p>
+        <p class="hint">A little curiosity goes a long way.<span class="hint-shortcuts">Press A, B, C or D to answer</span></p>
       </div>
     </section>
 
@@ -280,6 +282,15 @@
       byId("wrong-count").textContent = questions.length - score;
       byId("result-heading").focus();
     }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+      if (event.target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName)) return;
+      const selected = "abcd".indexOf(event.key.toLowerCase());
+      if (selected < 0 || answered || byId("quiz").hidden) return;
+      const answer = byId("answers").children[selected];
+      if (answer && !answer.disabled) selectAnswer(selected);
+    });
 
     byId("next").addEventListener("click", () => {
       if (!answered) return;
